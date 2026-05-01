@@ -1,0 +1,103 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f4f6fb;
+  color: #1f2937;
+}
+
+body.auth-page {
+  background-image: linear-gradient(rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.45)), url("/assets/pic1.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+}
+
+body.dashboard-page {
+  background-image: linear-gradient(rgba(15, 23, 42, 0.3), rgba(15, 23, 42, 0.3)), url("/assets/pic2.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+  margin-bottom: 16px;
+}
+
+#app-section .card {
+  background: rgba(107, 114, 128, 0.45);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(3px);
+}
+
+#app-section input,
+#app-section textarea,
+#app-section select {
+  background: rgba(255, 255, 255, 0.9);
+  color: #111827;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+input,
+textarea,
+select,
+button {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+}
+
+button {
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+  border: none;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+.hidden {
+  display: none;
+}
+
+#message {
+  min-height: 24px;
+  font-weight: 600;
+}
+
+#auth-section .card {
+  background: rgba(15, 23, 42, 0.62);
+  color: #ffffff;
+  backdrop-filter: blur(2px);
+}
+
+#auth-section h2,
+#auth-section h3 {
+  color: #ffffff;
+}

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Project Tracker</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Project Tracker</h1>
+
+      <section id="auth-section">
+        <h2>Authentication</h2>
+        <div class="card">
+          <button id="auth-toggle-btn" type="button">Need an account? Go to Signup</button>
+
+          <form id="login-form">
+            <h3>Login</h3>
+            <input name="userId" placeholder="Admin ID / Member ID" required />
+            <input name="password" type="password" placeholder="Password" required />
+            <button type="submit">Login</button>
+          </form>
+
+          <form id="signup-form" class="hidden">
+            <h3>Signup</h3>
+            <input name="name" placeholder="Name" required />
+            <input name="email" type="email" placeholder="Email" required />
+            <input name="password" type="password" placeholder="Password" required />
+            <select name="role" id="signup-role">
+              <option value="MEMBER">Member</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+            <input
+              id="signup-admin-id"
+              name="adminId"
+              placeholder="Admin ID (required for member)"
+              required
+            />
+            <button type="submit">Signup</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="app-section" class="hidden">
+        <div class="card">
+          <h2>Current User</h2>
+          <p id="user-info"></p>
+          <button id="copy-id-btn" type="button">Copy My ID</button>
+          <button id="refresh-dashboard">Refresh Dashboard</button>
+        </div>
+
+        <div class="grid">
+          <form id="project-form" class="card">
+            <h3>Create Project</h3>
+            <input name="name" placeholder="Project name" required />
+            <textarea name="description" placeholder="Description"></textarea>
+            <button type="submit">Create Project</button>
+          </form>
+
+          <form id="task-form" class="card">
+            <h3>Create Task</h3>
+            <select id="task-project" name="projectId" required></select>
+            <input name="title" placeholder="Task title" required />
+            <textarea name="description" placeholder="Description"></textarea>
+            <select name="status">
+              <option value="TODO">TODO</option>
+              <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="DONE">DONE</option>
+            </select>
+            <input name="dueDate" type="datetime-local" />
+            <button type="submit">Create Task</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2>Projects</h2>
+          <ul id="projects-list"></ul>
+        </div>
+
+        <div class="card">
+          <h2>Dashboard</h2>
+          <pre id="dashboard-stats"></pre>
+          <ul id="dashboard-tasks"></ul>
+        </div>
+      </section>
+
+      <p id="message"></p>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
