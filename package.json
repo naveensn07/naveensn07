@@ -4,15 +4,16 @@
   "description": "Project/task management app with RBAC",
   "main": "src/server.js",
   "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate deploy",
-    "prisma:push": "prisma db push",
-    "start:prod": "npm run prisma:generate && npm run prisma:push && npm start"
-  },
-  "keywords": [],
-  "author": "",
+  "build": "prisma generate",
+  "dev": "nodemon src/server.js",
+  "start": "node src/server.js",
+  "db:deploy": "prisma migrate deploy",
+  "prisma:generate": "prisma generate",
+  "prisma:migrate": "prisma migrate deploy",
+  "prisma:push": "prisma db push",
+  "start:prod": "npm start"
+},
+
   "license": "ISC",
   "engines": {
   "node": "20.x"
