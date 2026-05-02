@@ -31,6 +31,11 @@ const LOGIN_MAX_ATTEMPTS = 10;
 
 app.use(cors());
 app.use(express.json());
+
+app.get("/health", (req, res) => {
+  res.status(200).json({ ok: true });
+});
+
 app.use(express.static(path.join(__dirname, "..", "public")));
 app.get("/assets/pic1.jpg", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "pic1.jpg"));
