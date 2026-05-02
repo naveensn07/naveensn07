@@ -451,6 +451,14 @@ app.use((req, res) => {
   res.sendFile(path.join(__dirname, "..", "public", "index.html"));
 });
 
+process.on("uncaughtException", (err) => {
+  console.error("UNCAUGHT EXCEPTION:", err);
+});
+
+process.on("unhandledRejection", (err) => {
+  console.error("UNHANDLED REJECTION:", err);
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
