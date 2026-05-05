@@ -101,3 +101,18 @@ button:hover {
 #auth-section h3 {
   color: #ffffff;
 }
+
+.app-topbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.logout-button {
+  background: #dc2626;
+}
+
+.logout-button:hover {
+  background: #b91c1c;
+}
+
