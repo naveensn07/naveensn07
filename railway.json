@@ -5,7 +5,7 @@
     "buildCommand": "npm run build"
   },
   "deploy": {
-   "preDeployCommand": "npx prisma migrate resolve --applied 20260502000000_init && npm run db:deploy",
+    "preDeployCommand": "npm run db:deploy",
     "startCommand": "npm start",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 60,
