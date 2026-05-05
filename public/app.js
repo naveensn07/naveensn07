@@ -15,6 +15,7 @@ const taskFormEl = document.getElementById("task-form");
 const projectFormEl = document.getElementById("project-form");
 const copyIdBtnEl = document.getElementById("copy-id-btn");
 const refreshDashboardBtnEl = document.getElementById("refresh-dashboard");
+const logoutBtnEl = document.getElementById("logout-btn");
 
 function bindEvent(el, eventName, handler) {
   if (!el) return;
@@ -38,8 +39,10 @@ async function api(path, options = {}) {
   if (state.token) {
     headers.Authorization = `Bearer ${state.token}`;
   }
+
   const response = await fetch(path, { ...options, headers });
   const data = await response.json().catch(() => ({}));
+
   if (!response.ok) {
     if (response.status === 401) {
       state.token = "";
@@ -47,12 +50,15 @@ async function api(path, options = {}) {
       toggleSections(false);
       setAuthMode("login");
     }
+
     const firstIssue = Array.isArray(data.errors) && data.errors.length > 0 ? data.errors[0] : null;
     const issueText = firstIssue
       ? `${firstIssue.path?.join(".") || "field"}: ${firstIssue.message}`
       : null;
+
     throw new Error(issueText || data.message || "Request failed");
   }
+
   return data;
 }
 
@@ -66,8 +72,10 @@ function toggleSections(loggedIn) {
 function setAuthMode(mode) {
   state.authMode = mode;
   const showLogin = mode === "login";
+
   loginFormEl.classList.toggle("hidden", !showLogin);
   signupFormEl.classList.toggle("hidden", showLogin);
+
   authToggleBtnEl.textContent = showLogin
     ? "Need an account? Go to Signup"
     : "Already have an account? Go to Login";
@@ -110,6 +118,7 @@ function renderProjects() {
 
   const canCreateTask = state.projects.length > 0;
   taskProjectEl.required = canCreateTask;
+
   [...taskFormEl.querySelectorAll("input, textarea, select, button")].forEach((el) => {
     if (el.name !== "projectId") {
       el.disabled = !canCreateTask;
@@ -120,9 +129,11 @@ function renderProjects() {
 function renderDashboard(stats, tasks) {
   dashboardStatsEl.textContent = JSON.stringify(stats, null, 2);
   dashboardTasksEl.innerHTML = "";
+
   tasks.forEach((task) => {
     const li = document.createElement("li");
     const dueText = task.dueDate ? new Date(task.dueDate).toLocaleString() : "No due date";
+
     const details = document.createElement("span");
     details.textContent = `[${task.status}] ${task.title} | ${task.project.name} | Due: ${dueText} `;
     li.appendChild(details);
@@ -141,11 +152,13 @@ function renderDashboard(stats, tasks) {
 async function loadAppData() {
   const me = await api("/api/auth/me");
   state.user = me.user;
+
   const identity = state.user.role === "ADMIN" ? state.user.adminId : state.user.memberId;
   const adminOwner =
     state.user.role === "MEMBER" && state.user.adminUser
       ? ` | Admin: ${state.user.adminUser.name} (${state.user.adminUser.adminId})`
       : "";
+
   userInfoEl.textContent = `${state.user.name} (${state.user.role}) - ID: ${identity}${adminOwner}`;
   projectFormEl.classList.toggle("hidden", state.user.role === "MEMBER");
 
@@ -159,17 +172,22 @@ async function loadAppData() {
 
 bindEvent(signupFormEl, "submit", async (e) => {
   e.preventDefault();
+
   const formData = new FormData(e.target);
   const body = Object.fromEntries(formData.entries());
+
   try {
     const data = await api("/api/auth/signup", {
       method: "POST",
       body: JSON.stringify(body),
     });
+
     state.token = data.token;
     sessionStorage.setItem("token", state.token);
+
     toggleSections(true);
     await loadAppData();
+
     const createdId = data.user.adminId || data.user.memberId;
     showMessage(`Signup successful. Your ID: ${createdId}`);
   } catch (error) {
@@ -179,17 +197,22 @@ bindEvent(signupFormEl, "submit", async (e) => {
 
 bindEvent(loginFormEl, "submit", async (e) => {
   e.preventDefault();
+
   const formData = new FormData(e.target);
   const body = Object.fromEntries(formData.entries());
+
   try {
     const data = await api("/api/auth/login", {
       method: "POST",
       body: JSON.stringify(body),
     });
+
     state.token = data.token;
     sessionStorage.setItem("token", state.token);
+
     toggleSections(true);
     await loadAppData();
+
     showMessage("Login successful");
   } catch (error) {
     showMessage(error.message, true);
@@ -198,8 +221,10 @@ bindEvent(loginFormEl, "submit", async (e) => {
 
 bindEvent(projectFormEl, "submit", async (e) => {
   e.preventDefault();
+
   const formData = new FormData(e.target);
   const body = Object.fromEntries(formData.entries());
+
   if (!body.description) delete body.description;
 
   try {
@@ -207,8 +232,10 @@ bindEvent(projectFormEl, "submit", async (e) => {
       method: "POST",
       body: JSON.stringify(body),
     });
+
     await loadAppData();
     e.target.reset();
+
     showMessage("Project created");
   } catch (error) {
     showMessage(error.message, true);
@@ -217,13 +244,16 @@ bindEvent(projectFormEl, "submit", async (e) => {
 
 bindEvent(taskFormEl, "submit", async (e) => {
   e.preventDefault();
+
   if (!state.projects.length) {
     showMessage("Create a project first, then add tasks.", true);
     return;
   }
+
   const formData = new FormData(e.target);
   const body = Object.fromEntries(formData.entries());
   const projectId = body.projectId;
+
   delete body.projectId;
 
   if (!body.description) delete body.description;
@@ -235,8 +265,10 @@ bindEvent(taskFormEl, "submit", async (e) => {
       method: "POST",
       body: JSON.stringify(body),
     });
+
     await loadAppData();
     e.target.reset();
+
     showMessage("Task created");
   } catch (error) {
     showMessage(error.message, true);
@@ -252,8 +284,26 @@ bindEvent(refreshDashboardBtnEl, "click", async () => {
   }
 });
 
+bindEvent(logoutBtnEl, "click", () => {
+  state.token = "";
+  state.user = null;
+  state.projects = [];
+
+  sessionStorage.removeItem("token");
+
+  loginFormEl.reset();
+  signupFormEl.reset();
+
+  syncSignupFields();
+  setAuthMode("login");
+  toggleSections(false);
+
+  showMessage("Logged out");
+});
+
 bindEvent(copyIdBtnEl, "click", async () => {
   const identity = state.user?.role === "ADMIN" ? state.user?.adminId : state.user?.memberId;
+
   if (!identity) {
     showMessage("User ID not available.", true);
     return;
@@ -279,6 +329,7 @@ bindEvent(authToggleBtnEl, "click", () => {
 });
 
 bindEvent(signupRoleEl, "change", syncSignupFields);
+
 bindEvent(dashboardTasksEl, "click", async (e) => {
   const button = e.target.closest("button[data-task-id]");
   if (!button) return;
@@ -287,11 +338,13 @@ bindEvent(dashboardTasksEl, "click", async (e) => {
   if (!taskId || !nextStatus) return;
 
   button.disabled = true;
+
   try {
     await api(`/api/tasks/${taskId}`, {
       method: "PATCH",
       body: JSON.stringify({ status: nextStatus }),
     });
+
     await loadAppData();
     showMessage(`Task updated to ${nextStatus}`);
   } catch (error) {
@@ -305,9 +358,11 @@ async function boot() {
   syncSignupFields();
   setAuthMode("login");
   toggleSections(false);
+
   if (!state.token) {
     return;
   }
+
   try {
     await loadAppData();
     toggleSections(true);
