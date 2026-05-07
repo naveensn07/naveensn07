@@ -42,9 +42,11 @@ app.get("/health", (req, res) => {
 });
 
 app.use(express.static(path.join(__dirname, "..", "public")));
+
 app.get("/assets/pic1.jpg", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "pic1.jpg"));
 });
+
 app.get("/assets/pic2.jpg", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "pic2.jpg"));
 });
@@ -62,10 +64,12 @@ function buildIdentityCode(prefix) {
 async function generateUniqueCode(prefix, field) {
   let code = buildIdentityCode(prefix);
   let existing = await prisma.user.findUnique({ where: { [field]: code } });
+
   while (existing) {
     code = buildIdentityCode(prefix);
     existing = await prisma.user.findUnique({ where: { [field]: code } });
   }
+
   return code;
 }
 
@@ -95,23 +99,28 @@ function loginRateLimiter(req, res, next) {
 
 app.post("/api/auth/signup", async (req, res) => {
   const parsed = signupSchema.safeParse(req.body);
+
   if (!parsed.success) {
     return res.status(400).json({ message: "Validation error", errors: parsed.error.issues });
   }
 
   try {
     const { name, email, password, role, adminId } = parsed.data;
+
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       return res.status(409).json({ message: "Email already in use." });
     }
 
     let adminUser = null;
+
     if (role === "MEMBER") {
       if (!adminId) {
         return res.status(400).json({ message: "Admin ID is required for member signup." });
       }
+
       adminUser = await prisma.user.findUnique({ where: { adminId } });
+
       if (!adminUser || adminUser.role !== "ADMIN") {
         return res.status(400).json({ message: "Valid Admin ID is required." });
       }
@@ -120,6 +129,7 @@ app.post("/api/auth/signup", async (req, res) => {
     const generatedAdminId = role === "ADMIN" ? await generateUniqueCode("ADM", "adminId") : null;
     const generatedMemberId = role === "MEMBER" ? await generateUniqueCode("MEM", "memberId") : null;
     const passwordHash = await bcrypt.hash(password, 10);
+
     const user = await prisma.user.create({
       data: {
         name,
@@ -148,6 +158,7 @@ app.post("/api/auth/signup", async (req, res) => {
         where: { userId: adminUser.id },
         select: { projectId: true },
       });
+
       if (adminProjectMemberships.length > 0) {
         await prisma.projectMember.createMany({
           data: adminProjectMemberships.map(({ projectId }) => ({
@@ -163,27 +174,33 @@ app.post("/api/auth/signup", async (req, res) => {
     const token = issueToken(user);
     return res.status(201).json({ user, token });
   } catch (error) {
+    console.error("Signup error:", error);
     return res.status(500).json({ message: "Failed to signup." });
   }
 });
 
 app.post("/api/auth/login", loginRateLimiter, async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
+
   if (!parsed.success) {
     return res.status(400).json({ message: "Validation error", errors: parsed.error.issues });
   }
 
   try {
     const { userId, password } = parsed.data;
+
     const user = await prisma.user.findFirst({
       where: {
         OR: [{ adminId: userId }, { memberId: userId }],
       },
     });
+
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials." });
     }
+
     const ok = await bcrypt.compare(password, user.passwordHash);
+
     if (!ok) {
       return res.status(401).json({ message: "Invalid credentials." });
     }
@@ -197,9 +214,11 @@ app.post("/api/auth/login", loginRateLimiter, async (req, res) => {
       memberId: user.memberId,
       adminUserId: user.adminUserId,
     };
+
     const token = issueToken(payloadUser);
     return res.json({ user: payloadUser, token });
   } catch (error) {
+    console.error("Login error:", error);
     return res.status(500).json({ message: "Login failed." });
   }
 });
@@ -222,6 +241,7 @@ app.get("/api/users", requireAuth, requireSystemAdmin, async (req, res) => {
     },
     orderBy: { createdAt: "desc" },
   });
+
   return res.json({ users });
 });
 
@@ -231,18 +251,22 @@ app.post("/api/projects", requireAuth, async (req, res) => {
   }
 
   const parsed = projectCreateSchema.safeParse(req.body);
+
   if (!parsed.success) {
     return res.status(400).json({ message: "Validation error", errors: parsed.error.issues });
   }
 
   try {
     const { name, description, memberIds = [] } = parsed.data;
+
     const managedMembers = await prisma.user.findMany({
       where: { adminUserId: req.user.id, role: "MEMBER" },
       select: { id: true },
     });
+
     const autoMemberIds = managedMembers.map((member) => member.id);
     const uniqueMemberIds = [...new Set([req.user.id, ...autoMemberIds, ...memberIds])];
+
     const project = await prisma.project.create({
       data: {
         name,
@@ -255,11 +279,19 @@ app.post("/api/projects", requireAuth, async (req, res) => {
         },
       },
       include: {
-        members: { include: { user: { select: { id: true, name: true, email: true, role: true } } } },
+        members: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, role: true },
+            },
+          },
+        },
       },
     });
+
     return res.status(201).json({ project });
   } catch (error) {
+    console.error("Create project error:", error);
     return res.status(500).json({ message: "Failed to create project." });
   }
 });
@@ -283,23 +315,35 @@ app.get("/api/projects", requireAuth, async (req, res) => {
 
 app.post("/api/projects/:projectId/members", requireAuth, async (req, res) => {
   const parsed = addProjectMemberSchema.safeParse(req.body);
+
   if (!parsed.success) {
     return res.status(400).json({ message: "Validation error", errors: parsed.error.issues });
   }
 
   const { projectId } = req.params;
   const adminMembership = await getMembership(projectId, req.user.id);
+
   if (!adminMembership || adminMembership.role !== "ADMIN") {
     return res.status(403).json({ message: "Project admin role required." });
   }
 
   try {
     const member = await prisma.projectMember.create({
-      data: { projectId, userId: parsed.data.userId, role: parsed.data.role },
-      include: { user: { select: { id: true, name: true, email: true, role: true } } },
+      data: {
+        projectId,
+        userId: parsed.data.userId,
+        role: parsed.data.role,
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, role: true },
+        },
+      },
     });
+
     return res.status(201).json({ member });
   } catch (error) {
+    console.error("Add project member error:", error);
     return res.status(400).json({ message: "Member could not be added." });
   }
 });
@@ -307,6 +351,7 @@ app.post("/api/projects/:projectId/members", requireAuth, async (req, res) => {
 app.get("/api/projects/:projectId/tasks", requireAuth, async (req, res) => {
   const { projectId } = req.params;
   const membership = await getMembership(projectId, req.user.id);
+
   if (!membership) {
     return res.status(403).json({ message: "Not part of this project." });
   }
@@ -319,22 +364,27 @@ app.get("/api/projects/:projectId/tasks", requireAuth, async (req, res) => {
     },
     orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
   });
+
   return res.json({ tasks });
 });
 
 app.post("/api/projects/:projectId/tasks", requireAuth, async (req, res) => {
   const parsed = taskCreateSchema.safeParse(req.body);
+
   if (!parsed.success) {
     return res.status(400).json({ message: "Validation error", errors: parsed.error.issues });
   }
 
   const { projectId } = req.params;
   const membership = await getMembership(projectId, req.user.id);
+
   if (!membership) {
     return res.status(403).json({ message: "Not part of this project." });
   }
+
   if (parsed.data.assigneeId) {
     const assigneeMembership = await getMembership(projectId, parsed.data.assigneeId);
+
     if (!assigneeMembership) {
       return res.status(400).json({ message: "Assignee must be a member of this project." });
     }
@@ -356,11 +406,14 @@ app.post("/api/projects/:projectId/tasks", requireAuth, async (req, res) => {
         creator: { select: { id: true, name: true, email: true } },
       },
     });
+
     return res.status(201).json({ task });
   } catch (error) {
+    console.error("Create task error:", error);
     return res.status(400).json({ message: "Task could not be created." });
   }
 });
+
 app.post("/api/tasks/:taskId/work-file", requireAuth, upload.single("workedFile"), async (req, res) => {
   const { taskId } = req.params;
 
@@ -403,7 +456,6 @@ app.post("/api/tasks/:taskId/work-file", requireAuth, upload.single("workedFile"
 
 app.get("/api/tasks/:taskId/work-file", requireAuth, async (req, res) => {
   const { taskId } = req.params;
-
   const task = await prisma.task.findUnique({ where: { id: taskId } });
 
   if (!task) {
@@ -427,45 +479,57 @@ app.get("/api/tasks/:taskId/work-file", requireAuth, async (req, res) => {
 
 app.patch("/api/tasks/:taskId", requireAuth, async (req, res) => {
   const parsed = taskUpdateSchema.safeParse(req.body);
+
   if (!parsed.success) {
     return res.status(400).json({ message: "Validation error", errors: parsed.error.issues });
   }
 
   const { taskId } = req.params;
   const task = await prisma.task.findUnique({ where: { id: taskId } });
+
   if (!task) {
     return res.status(404).json({ message: "Task not found." });
   }
 
   const membership = await getMembership(task.projectId, req.user.id);
+
   if (!membership) {
     return res.status(403).json({ message: "Not part of this project." });
   }
+
   const isTaskOwner = task.assigneeId === req.user.id || task.creatorId === req.user.id;
+
   if (membership.role !== "ADMIN" && !isTaskOwner) {
     const updatedFields = Object.entries(parsed.data)
       .filter(([, value]) => value !== undefined)
       .map(([key]) => key);
+
     const onlyStatusUpdate = updatedFields.length === 1 && updatedFields[0] === "status";
+
     if (!onlyStatusUpdate) {
       return res.status(403).json({ message: "No permission to edit this task." });
     }
   }
 
   const data = {};
+
   if (parsed.data.title !== undefined) data.title = parsed.data.title;
   if (parsed.data.description !== undefined) data.description = parsed.data.description;
   if (parsed.data.status !== undefined) data.status = parsed.data.status;
+
   if (parsed.data.dueDate !== undefined) {
     data.dueDate = parsed.data.dueDate ? new Date(parsed.data.dueDate) : null;
   }
+
   if (parsed.data.assigneeId !== undefined) {
     if (parsed.data.assigneeId) {
       const assigneeMembership = await getMembership(task.projectId, parsed.data.assigneeId);
+
       if (!assigneeMembership) {
         return res.status(400).json({ message: "Assignee must be a member of this project." });
       }
     }
+
     data.assigneeId = parsed.data.assigneeId;
   }
 
@@ -477,15 +541,18 @@ app.patch("/api/tasks/:taskId", requireAuth, async (req, res) => {
       creator: { select: { id: true, name: true, email: true } },
     },
   });
+
   return res.json({ task: updatedTask });
 });
 
 app.get("/api/dashboard", requireAuth, async (req, res) => {
   const now = new Date();
+
   const projectMemberships = await prisma.projectMember.findMany({
     where: { userId: req.user.id },
     select: { projectId: true },
   });
+
   const projectIds = projectMemberships.map((membership) => membership.projectId);
 
   if (projectIds.length === 0) {
@@ -505,15 +572,16 @@ app.get("/api/dashboard", requireAuth, async (req, res) => {
     where: {
       projectId: { in: projectIds },
     },
-    select: {
-  id: true,
-  title: true,
-  description: true,
-  status: true,
-  dueDate: true,
-  workedFileName: true,
-  project: { select: { id: true, name: true } },
     orderBy: { dueDate: "asc" },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      status: true,
+      dueDate: true,
+      workedFileName: true,
+      project: { select: { id: true, name: true } },
+    },
   });
 
   const stats = {
