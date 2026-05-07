@@ -3,6 +3,7 @@ const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
+const multer = require("multer");
 const jwt = require("jsonwebtoken");
 const prisma = require("./db");
 const { requireAuth, requireSystemAdmin } = require("./middleware/auth");
@@ -27,6 +28,10 @@ for (const key of REQUIRED_ENV_VARS) {
 
 const loginAttempts = new Map();
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 const LOGIN_MAX_ATTEMPTS = 10;
 
 app.use(cors());
@@ -355,6 +360,69 @@ app.post("/api/projects/:projectId/tasks", requireAuth, async (req, res) => {
   } catch (error) {
     return res.status(400).json({ message: "Task could not be created." });
   }
+});
+app.post("/api/tasks/:taskId/work-file", requireAuth, upload.single("workedFile"), async (req, res) => {
+  const { taskId } = req.params;
+
+  if (!req.file) {
+    return res.status(400).json({ message: "Worked file is required." });
+  }
+
+  const task = await prisma.task.findUnique({ where: { id: taskId } });
+
+  if (!task) {
+    return res.status(404).json({ message: "Task not found." });
+  }
+
+  const membership = await getMembership(task.projectId, req.user.id);
+
+  if (!membership) {
+    return res.status(403).json({ message: "Not part of this project." });
+  }
+
+  if (req.user.role !== "MEMBER") {
+    return res.status(403).json({ message: "Only members can upload worked files." });
+  }
+
+  const updatedTask = await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      workedFile: req.file.buffer,
+      workedFileName: req.file.originalname,
+      workedFileType: req.file.mimetype,
+    },
+  });
+
+  return res.json({
+    task: {
+      id: updatedTask.id,
+      workedFileName: updatedTask.workedFileName,
+    },
+  });
+});
+
+app.get("/api/tasks/:taskId/work-file", requireAuth, async (req, res) => {
+  const { taskId } = req.params;
+
+  const task = await prisma.task.findUnique({ where: { id: taskId } });
+
+  if (!task) {
+    return res.status(404).json({ message: "Task not found." });
+  }
+
+  const membership = await getMembership(task.projectId, req.user.id);
+
+  if (!membership) {
+    return res.status(403).json({ message: "Not part of this project." });
+  }
+
+  if (!task.workedFile) {
+    return res.status(404).json({ message: "No worked file uploaded." });
+  }
+
+  res.setHeader("Content-Type", task.workedFileType || "application/octet-stream");
+  res.setHeader("Content-Disposition", `attachment; filename="${task.workedFileName || "worked-file"}"`);
+  return res.send(Buffer.from(task.workedFile));
 });
 
 app.patch("/api/tasks/:taskId", requireAuth, async (req, res) => {
