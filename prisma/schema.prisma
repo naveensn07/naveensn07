@@ -64,6 +64,9 @@ model Task {
   description String?
   status      TaskStatus  @default(TODO)
   dueDate     DateTime?
+  workedFile     Bytes?
+  workedFileName String?
+  workedFileType String?
   projectId   String
   assigneeId  String?
   creatorId   String
