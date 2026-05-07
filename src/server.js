@@ -505,7 +505,14 @@ app.get("/api/dashboard", requireAuth, async (req, res) => {
     where: {
       projectId: { in: projectIds },
     },
-    include: { project: { select: { id: true, name: true } } },
+    select: {
+  id: true,
+  title: true,
+  description: true,
+  status: true,
+  dueDate: true,
+  workedFileName: true,
+  project: { select: { id: true, name: true } },
     orderBy: { dueDate: "asc" },
   });
 
