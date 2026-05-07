@@ -137,7 +137,21 @@ function renderDashboard(stats, tasks) {
     const details = document.createElement("span");
     details.textContent = `[${task.status}] ${task.title} | ${task.project.name} | Due: ${dueText} `;
     li.appendChild(details);
+    if (state.user?.role === "MEMBER") {
+  const fileBtn = document.createElement("button");
+  fileBtn.type = "button";
+  fileBtn.dataset.uploadTaskId = task.id;
+  fileBtn.textContent = "Add File";
+  li.appendChild(fileBtn);
+}
 
+if (task.workedFileName) {
+  const fileLink = document.createElement("a");
+  fileLink.href = `/api/tasks/${task.id}/work-file`;
+  fileLink.target = "_blank";
+  fileLink.textContent = ` View file: ${task.workedFileName}`;
+  li.appendChild(fileLink);
+}
     const statusBtn = document.createElement("button");
     statusBtn.type = "button";
     statusBtn.dataset.taskId = task.id;
@@ -353,7 +367,50 @@ bindEvent(dashboardTasksEl, "click", async (e) => {
     button.disabled = false;
   }
 });
+bindEvent(dashboardTasksEl, "click", async (e) => {
+  const button = e.target.closest("button[data-upload-task-id]");
+  if (!button) return;
 
+  const { uploadTaskId } = button.dataset;
+
+  const input = document.createElement("input");
+  input.type = "file";
+
+  input.addEventListener("change", async () => {
+    const file = input.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("workedFile", file);
+
+    button.disabled = true;
+
+    try {
+      const response = await fetch(`/api/tasks/${uploadTaskId}/work-file`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${state.token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || "File upload failed");
+      }
+
+      await loadAppData();
+      showMessage("Worked file uploaded");
+    } catch (error) {
+      showMessage(error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  input.click();
+});
 async function boot() {
   syncSignupFields();
   setAuthMode("login");
